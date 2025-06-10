@@ -1,0 +1,194 @@
+#!/usr/bin/env bash
+
+# Quotes can't be that hard... right? Right?
+# shellcheck disable=SC2016
+
+# Enable bash "strict mode"
+set -euo pipefail
+
+# Exit status "enum"
+declare -rgA EXIT_STATUS=(
+	["OK"]=0
+	["MISSING_UTIL"]=1
+	["BAD_OPT"]=2
+	["NO_UPDATES"]=0
+	["BUSY_VSCODE"]=4
+	["UPDATE_REFUSED"]=5
+	["DOWNLOAD_FAILED"]=6
+	["DOWNLOAD_CORRUPTED"]=7
+)
+
+# sc is rather unhappy but `basename` is unlikely to ever fail
+# shellcheck disable=SC2155
+declare -rg ARGV0="$(basename "$0")"
+
+#TODO: Find a better way to do this (inject git commit hash? git tag name?)
+declare -rg VERSION="0.0.0"
+
+# Hashmap to track CLI flags
+declare -gA OPTS=(
+	["debug"]=0
+	# ["dry_run"]=0
+)
+
+# Same problem as with $ARGV0, `dirname` is unlikely to ever fail
+# shellcheck disable=SC2155
+declare -rg INSTALL_DIR="$(dirname "$(which Code.exe)")"
+
+declare -rg UPDATE_CHECK_DIR="$HOME/tmp-vsc-upd"
+declare -rg UPDATE_CHECK_RESULT_FILE="$UPDATE_CHECK_DIR/tmp-vsc-checkres"
+
+# Parse CLI flags
+
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		"-g" | "--debug" )
+			OPTS["debug"]=1
+		;;
+
+		"-h" | "--help" )
+			echo "$ARGV0 $VERSION"
+			echo "Update VSCode Portable Mode installations."
+			echo ""
+			echo "Usage: $ARGV0 [OPTION]..."
+			echo ""
+			echo "  -g, --debug    prints additional debug information and disables cleanup code"
+			echo "  -h, --help     display this help and exits"
+			# echo "  -n, --dry-run  echoes commands that would be run instead of actually running"
+			echo "  -v, --version  output version information and exits"
+
+			exit "${EXIT_STATUS["OK"]}"
+		;;
+
+		# "-n" | "--dry-run" )
+		# 	OPTS["dry_run"]=1
+		# ;;
+
+		"-v" | "--version" )
+			echo "$ARGV0 $VERSION"
+
+			exit "${EXIT_STATUS["OK"]}"
+		;;
+
+		*)
+			echo "$ARGV0: unknown option -- $1"
+
+			exit "${EXIT_STATUS["BAD_OPT"]}"
+		;;
+	esac
+
+	shift
+done
+
+# Check for non-standard utils
+if ! type -a jq > /dev/null 2>&1; then echo "jq required but not found"; exit "${EXIT_STATUS["MISSING_UTIL"]}"; fi;
+
+# Grab current local version info
+
+# sc prefers mpafile or read, but this avoids files and allows readonly
+# shellcheck disable=SC2207
+declare -r local_version_data=($(code --version))
+declare -r local_version_name="${local_version_data[0]}"
+declare -r local_version_hash="${local_version_data[1]}"
+
+echo "Checking for updates..."
+
+# Prepare temporary directory to grab and store update check results in
+
+mkdir -p "$UPDATE_CHECK_DIR"
+
+# Check for updates
+
+curl -s -o "$UPDATE_CHECK_RESULT_FILE" "https://update.code.visualstudio.com/api/update/win32-x64-archive/stable/$local_version_hash"
+
+# Check if there's anything new
+
+if [[ ! -s "$UPDATE_CHECK_RESULT_FILE" ]]; then
+	echo "No updates found."
+
+	[[ "${OPTS["debug"]}" -eq 0 ]] && rm -rf "$UPDATE_CHECK_DIR"
+	exit "${EXIT_STATUS["NO_UPDATES"]}"
+fi
+
+# If we get here that means there are updates, display information about the update
+
+# sc is unhappy but these are _probably_ safe
+
+# shellcheck disable=SC2155
+declare -r upstream_version_name="$(jq -r .name "$UPDATE_CHECK_RESULT_FILE")"
+# shellcheck disable=SC2155
+declare -r upstream_version_hash="$(jq -r .version "$UPDATE_CHECK_RESULT_FILE")"
+
+echo "Local version: $local_version_name ($local_version_hash)"
+echo "Upstream version: $upstream_version_name ($upstream_version_hash)"
+
+# sc suggests pgrep, but MSYS2's pgrep can't see Windows processes
+# shellcheck disable=SC2009
+if ps -eW | grep -q '[C]ode.exe'; then
+	echo "Close VSCode before updating."
+	exit "${EXIT_STATUS["BUSY_VSCODE"]}"
+fi
+
+# Request confirmation from user before updating
+
+read -r -n 1 -p "Replace local version with upstream version? (y/N) " action
+if [[ -z "$action" ]]; then
+	action="n"
+else
+	echo ""
+fi
+
+# Again sc is unhappy, but jq and sha256sum are _probably_ safe
+# shellcheck disable=SC2155
+case "$action" in
+	y | Y )
+		# Download update
+
+		echo "Downloading new version..."
+
+		declare -r src="$(jq -r .url "$UPDATE_CHECK_RESULT_FILE")"
+		declare -r out="$UPDATE_CHECK_DIR/VSCode-win32-x64-$upstream_version_name.zip"
+		if ! curl -o "$out" "$src"; then
+			echo "Download failed, aborting."
+
+			[[ "${OPTS["debug"]}" -eq 0 ]] && rm -rf "$UPDATE_CHECK_DIR"
+			exit "${EXIT_STATUS["DOWNLOAD_FAILED"]}"
+		fi
+
+		# Ensure hashes match
+
+		echo "Checking file integrity..."
+
+		declare -r upstream_sum="$(jq -r .sha256hash "$UPDATE_CHECK_RESULT_FILE")"
+		declare -r actual_sum="$(sha256sum "$out" | cut -d ' ' -f 1)"
+
+		if [[ "$upstream_sum" == "$actual_sum" ]]; then
+			echo "File OK."
+		else
+			echo "File may be corrupted:"
+			echo "  Expected: $upstream_sum"
+			echo "  Received: $actual_sum"
+			echo "Aborting."
+
+			[[ "${OPTS["debug"]}" -eq 0 ]] && rm -rf "$UPDATE_CHECK_DIR"
+			exit "${EXIT_STATUS["DOWNLOAD_CORRUPTED"]}"
+		fi
+
+		# Replace files
+
+		echo "Extracting files..."
+		unzip -u -o -qq "$out" -d "$INSTALL_DIR"
+		echo "Finished extracting."
+
+		echo ""
+
+		[[ "${OPTS["debug"]}" -eq 0 ]] && rm -rf "$UPDATE_CHECK_DIR"
+		echo "Finished updating."
+		exit "${EXIT_STATUS["OK"]}"
+	;;
+
+	* )
+		echo "Aborting."
+		exit "${EXIT_STATUS["UPDATE_REFUSED"]}"
+	;;
+esac
