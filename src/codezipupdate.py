@@ -9,7 +9,6 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
-import urllib.request
 import zipfile
 
 class ExitStatus(IntEnum):
@@ -140,11 +139,15 @@ def main() -> ExitStatus:
 
 	# Check for updates
 
-	with (
-		urllib.request.urlopen(f"https://update.code.visualstudio.com/api/update/win32-x64-archive/stable/{local_vscode_version_hash}") as conn,
-		open(UPDATE_CHECK_RESULT_FILE, "wb") as f
-	):
-		f.write(conn.read())
+	subprocess.run(
+		[
+			"curl",
+			"-s",
+			"-o",
+			UPDATE_CHECK_RESULT_FILE,
+			f"https://update.code.visualstudio.com/api/update/win32-x64-archive/stable/{local_vscode_version_hash}"
+		]
+	)
 
 	if UPDATE_CHECK_RESULT_FILE.stat().st_size == 0:
 		print("No updates found.")
@@ -201,11 +204,7 @@ def main() -> ExitStatus:
 
 	src = update_check_result["url"]
 	out = UPDATE_CHECK_DIR / f"VSCode-win32-x64-{upstream_vscode_version_name}.zip"
-	try:
-		with urllib.request.urlopen(src) as conn, open(out, "wb") as f:
-			f.write(conn.read())
-	except Exception:
-		print("Download failed, aborting.")
+	if subprocess.run(["curl", "-o", out, src]).returncode != 0:
 		return ExitStatus.DOWNLOAD_FAILED
 
 	print("Finished downloading.")
