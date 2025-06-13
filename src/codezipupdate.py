@@ -163,8 +163,8 @@ def main() -> ExitStatus:
 		upstream_vscode_version_name = update_check_result["version"]
 		upstream_vscode_version_hash = update_check_result["hash"]
 
-	print(f"Local version: {local_vscode_version_name} {local_vscode_version_hash}")
-	print(f"Upstream version: {upstream_vscode_version_name} {upstream_vscode_version_hash}")
+	print(f"Local version: {local_vscode_version_name} ({local_vscode_version_hash})")
+	print(f"Upstream version: {upstream_vscode_version_name} ({upstream_vscode_version_hash})")
 
 	if psef_code():
 		# This is only a problem on Windows but forcing everyone to deal with
