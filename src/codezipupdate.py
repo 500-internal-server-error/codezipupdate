@@ -163,8 +163,8 @@ def main() -> ExitStatus:
 	upstream_vscode_version_hash = None
 	with open(UPDATE_CHECK_RESULT_FILE, "rb") as f:
 		update_check_result = json.load(f)
-		upstream_vscode_version_name = update_check_result["version"]
-		upstream_vscode_version_hash = update_check_result["hash"]
+		upstream_vscode_version_name = update_check_result["name"]
+		upstream_vscode_version_hash = update_check_result["version"]
 
 	print(f"Local version: {local_vscode_version_name} ({local_vscode_version_hash})")
 	print(f"Upstream version: {upstream_vscode_version_name} ({upstream_vscode_version_hash})")
