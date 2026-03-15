@@ -55,7 +55,7 @@ $ codezipupdate
 Checking for updates...
 Local version: a.bc (abcdef)
 Upstream version: x.yz (fedcba)
-Close VScode before updating.
+Close VSCode before updating.
 ```
 
 As well as if downloading failed:
