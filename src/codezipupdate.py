@@ -208,11 +208,15 @@ def main() -> ExitStatus:
 	out = update_check_dir / src.rsplit("/", 1)[-1]
 	try:
 		if subprocess.run(["curl", "-o", out, src]).returncode != 0:
+			print("Download failed, aborting.", file=sys.stderr)
+
 			if not args.debug:
 				shutil.rmtree(update_check_dir)
 
 			return ExitStatus.DOWNLOAD_FAILED
 	except KeyboardInterrupt:
+		print("Download cancelled, aborting.", file=sys.stderr)
+
 		if not args.debug:
 			shutil.rmtree(update_check_dir)
 
