@@ -202,9 +202,6 @@ def main() -> ExitStatus:
 
 	# Download update
 
-	# Ye olde shellscript version used `curl` which gets us a progress thingy
-	# for free, but it's not a thing here with only stdlib `urlopen()`...
-
 	print("Downloading new version...")
 
 	src = update_check_result["url"]
