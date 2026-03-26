@@ -5,7 +5,7 @@ cd "$(git rev-parse --show-toplevel)"
 PROG='czu'
 PREFIX="${PROG}"
 BINDIR="${PREFIX}/bin"
-ENTRYPOINT='codezipupdate.py'
+ENTRYPOINT='main.py'
 RAW_LIBDIR="/lib/${PROG}"
 LIBDIR="${PREFIX}/${RAW_LIBDIR}"
 DOCDIR="${PREFIX}/share/doc/${PROG}"
