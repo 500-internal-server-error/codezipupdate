@@ -16,34 +16,40 @@ This tool helps update your VSCode-Portable install. Works best with VSCode's ow
 
 ## Installation
 
-Simply [`cp src/codezipupdate.py /usr/local/bin/codezipupdate`][src] or wherever is customary for the system you're using. There are no dependencies other than the Python standard library. [Certified Works on My Machine][womm] on Python 3.12.10.
+Run [`build.sh`][buildsh] and it will produce a `czu.tar.zst` tarball that can be extracted directly (e.g., `tar -xf czu.tar.zst -C /opt`) or to a standard location (e.g., `tar -xf czu.tar.zst --strip-components=1 -C /usr/local`). There are no dependencies other than the Python standard library. [Certified Works on My Machine][womm] on Python 3.14.3.
 
-[src]: ./src/codezipupdate.py
+[buildsh]: ./build.sh
 [womm]: https://blog.codinghorror.com/the-works-on-my-machine-certification-program/
 
 ## Usage
 
-Simply run `codezipupdate` and it will prompt you to update if there is one:
+Simply run `czu` and it will prompt you to update if there is one:
 
 ```
-$ codezipupdate
+$ czu
 Checking for updates...
 Local version: a.bc (abcdef)
 Upstream version: x.yz (fedcba)
 Replace local version with upstream version? (y/N) y
 Downloading new version...
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+100 100.1M 100 100.1M   0      0 10.10M      0   00:10   00:10         10.10M
 Finished downloading.
 Checking file integrity...
 File OK.
 Extracting files...
 Finished extracting.
+Replacing files...
+Finished replacing files.
+
 Finished updating.
 ```
 
 Otherwise it will inform you of the lack of updates:
 
 ```
-$ codezipupdate
+$ czu
 Checking for updates...
 No updates found.
 ```
@@ -51,7 +57,7 @@ No updates found.
 It will also remind you to close VSCode before updating (though this is mostly a problem on Windows):
 
 ```
-$ codezipupdate
+$ czu
 Checking for updates...
 Local version: a.bc (abcdef)
 Upstream version: x.yz (fedcba)
@@ -62,6 +68,9 @@ As well as if downloading failed:
 
 ```
 Downloading new version...
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+ 10 100.1M  10  10.1M   0      0 10.10M      0   00:01   00:01         10.10M
 Download failed, aborting.
 ```
 
@@ -69,6 +78,9 @@ Or the downloaded file doesn't look right:
 
 ```
 Downloading new version...
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+100 100.1M 100 100.1M   0      0 10.10M      0   00:10   00:10         10.10M
 Finished downloading.
 Checking file integrity...
 File may be corrupted:
